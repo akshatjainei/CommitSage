@@ -1,35 +1,56 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent, AgentType
-from langchain.prompts import SystemMessagePromptTemplate
-from Utils.tools import all_tools
+from langchain.prompts import SystemMessagePromptTemplate, PromptTemplate
+from langchain.agents import AgentExecutor, Tool
+from Utils.git_util import get_git_root, get_staged_diff
+from Utils.diff_parser import parse_diff
+
+def format_commit_message(message) -> str:
+    # If message is an AIMessage, extract its content
+    if hasattr(message, "content"):
+        message = message.content
+    message = message.strip()
+    if not message.lower().startswith("commit message:"):
+        message = f"Commit Message: {message}"
+    return message
+
+prompt_template = PromptTemplate(
+    input_variables=["diff_summary"],
+    template="""
+You are an expert at writing concise and descriptive git commit messages.
+Given the following code changes, generate a commit message that summarizes the intent:
+
+{diff_summary}
+"""
+)
+
+def build_commit_message_chain():
+    llm = ChatOpenAI(temperature=0.2, model="gpt-4o-mini")
+    return prompt_template | llm | format_commit_message
 
 load_dotenv()
 
-system_prompt = (
-    "You are a commit message generator agent. "
-    "First, use the available tools to gather information about the git repository, staged changes, and parse the diff. "
-    "Only after collecting this information, generate a concise and descriptive commit message."
-)
-
-system_message = SystemMessagePromptTemplate.from_template(system_prompt)
-
-
 def main():
     repo_path = input("Enter the path to the git repository (or '.' for current directory): ").strip()
-    openai_model = "gpt-3.5-turbo"
-    llm = ChatOpenAI(temperature=0.1, model=openai_model)
-    agent = initialize_agent(
-        tools=all_tools,
-        llm=llm,
-        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=True,
-        system_message=system_prompt
-    )
-    result = agent.run(repo_path)
+    # Get git root
+    git_root = get_git_root(repo_path)
+    # Get staged diff
+    diff = get_staged_diff(git_root)
+    # Parse diff
+    diff_summary = parse_diff(diff)
+    # Format summary for LLM
+    summary_str = ""
+    for fname, changes in diff_summary.items():
+        summary_str += f"File: {fname}\n"
+        for change in changes:
+            summary_str += f"  {change}\n"
+    # Build the Runnable chain
+    commit_message_chain = build_commit_message_chain()
+    # Use the chain directly
+    commit_message = commit_message_chain.invoke({"diff_summary": summary_str})
     print("\nSuggested commit message:")
-    print(result)
+    print(commit_message)
 
 if __name__ == "__main__":
     main()
