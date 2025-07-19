@@ -1,48 +1,35 @@
 import os
-from pathlib import Path
-import argparse
-import sys
-from Utils.git_util import(
-    get_git_root,
-    get_staged_diff,
-    get_staged_files
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent, AgentType
+from langchain.prompts import SystemMessagePromptTemplate
+from Utils.tools import all_tools
+
+load_dotenv()
+
+system_prompt = (
+    "You are a commit message generator agent. "
+    "First, use the available tools to gather information about the git repository, staged changes, and parse the diff. "
+    "Only after collecting this information, generate a concise and descriptive commit message."
 )
 
+system_message = SystemMessagePromptTemplate.from_template(system_prompt)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Generate commit context from staged git changes.")
-    parser.add_argument(
-        "path",
-        nargs="?",
-        default=os.getcwd(),
-        help="Path to the Git repository (default: current directory)"
+    repo_path = input("Enter the path to the git repository (or '.' for current directory): ").strip()
+    openai_model = "gpt-3.5-turbo"
+    llm = ChatOpenAI(temperature=0.1, model=openai_model)
+    agent = initialize_agent(
+        tools=all_tools,
+        llm=llm,
+        agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True,
+        system_message=system_prompt
     )
-
-    args = parser.parse_args()
-    target_path = Path(args.path).resolve()
-
-    if not target_path.exists():
-        print(f"Path does not exist: {target_path}")
-        sys.exit(1)
-
-    try:
-        git_root = get_git_root(target_path)
-        print(f"Git root detected at: {git_root}\n")
-
-        staged_files = get_staged_files(git_root)
-        if not staged_files:
-            print("No staged files found")
-            return
-
-        print("Staged files:")
-        for file in staged_files:
-            print(f" - {file}")
-
-        print("\nFetching staged diff...\n")
-        diff_output = get_staged_diff(git_root)
-        print(diff_output)
-
-    except Exception as e:
-        print(f"Error: {e}")
+    result = agent.run(repo_path)
+    print("\nSuggested commit message:")
+    print(result)
 
 if __name__ == "__main__":
     main()
