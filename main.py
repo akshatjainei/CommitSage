@@ -7,7 +7,6 @@ from Utils.git_util import get_git_root, get_staged_diff
 from Utils.diff_parser import parse_diff
 
 def format_commit_message(message) -> str:
-    # If message is an AIMessage, extract its content
     if hasattr(message, "content"):
         message = message.content
     message = message.strip()
@@ -45,9 +44,7 @@ def main():
         summary_str += f"File: {fname}\n"
         for change in changes:
             summary_str += f"  {change}\n"
-    # Build the Runnable chain
     commit_message_chain = build_commit_message_chain()
-    # Use the chain directly
     commit_message = commit_message_chain.invoke({"diff_summary": summary_str})
     print("\nSuggested commit message:")
     print(commit_message)
