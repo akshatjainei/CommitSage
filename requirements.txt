@@ -1,4 +1,9 @@
 langchain
 langchain-openai
+langchain-mcp-adapters
 openai
-python-dotenv 
+python-dotenv
+pydantic
+requests
+asyncio
+typing-extensions 

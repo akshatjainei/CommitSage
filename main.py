@@ -31,6 +31,27 @@ def build_commit_message_chain():
 load_dotenv()
 
 def main():
+    print("🚀 CommitSage - AI-Powered Git Tools")
+    print("=" * 40)
+    print("1. Generate Commit Message")
+    print("2. PR Review Agent")
+    print("3. Exit")
+    
+    choice = input("\nSelect an option (1-3): ").strip()
+    
+    if choice == "1":
+        generate_commit_message()
+    elif choice == "2":
+        run_pr_review_agent()
+    elif choice == "3":
+        print("👋 Goodbye!")
+        return
+    else:
+        print("❌ Invalid choice. Please select 1, 2, or 3.")
+        main()
+
+def generate_commit_message():
+    """Generate commit message functionality"""
     repo_path = input("Enter the path to the git repository (or '.' for current directory): ").strip()
     # Get git root
     git_root = get_git_root(repo_path)
@@ -48,6 +69,12 @@ def main():
     commit_message = commit_message_chain.invoke({"diff_summary": summary_str})
     print("\nSuggested commit message:")
     print(commit_message)
+
+def run_pr_review_agent():
+    """Run the PR Review Agent"""
+    print("\n🔍 Starting PR Review Agent...")
+    print("Please run: python pr_review_main.py")
+    print("Or check the README_PR_Review.md for detailed instructions.")
 
 if __name__ == "__main__":
     main()
